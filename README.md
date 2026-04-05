@@ -117,6 +117,6 @@ El `main` implementa el forward pass de una red neuronal con la siguiente arquit
 ## Autores
 
 - Humberto Ricardo Velito Neira
-- 
+- Alexander Rafael Muñoz Zamora
 
 Curso: Programación III — UTEC, 2026-1
