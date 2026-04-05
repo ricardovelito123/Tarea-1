@@ -146,18 +146,18 @@ public:
     // cambia la forma lógica del tensor manteniendo la misma cantidad total de elementos
     Tensor view(const vector<size_t>& new_shape) const {
         size_t new_total = 1;
-        for (size_t i = 0; i < new_shape.size(); i++) new_total *= new_shape[i];
+        for (size_t i = 0; i < new_shape.size(); i++) new_total *= new_shape[i]; // calcula cuántos elementos tendría la nueva forma
 
         if (new_total != total)
-            throw invalid_argument("View incompatible");
+            throw invalid_argument("View incompatible");  // la nueva forma debe tener exactamente el mismo número de elementos
 
         if (new_shape.size() > 3)
-            throw invalid_argument("Maximo 3 dimensiones");
+            throw invalid_argument("Maximo 3 dimensiones"); // restricción del enunciado: máximo 3D
 
         vector<double> vals;
         for (size_t i = 0; i < total; i++) vals.push_back(values[i]);
 
-        return Tensor(new_shape, vals);
+        return Tensor(new_shape, vals); // crea un nuevo tensor con los mismos datos pero distinta forma
     }
 
     // sección 7.2: unsqueeze
@@ -169,13 +169,13 @@ public:
         if (dim > shape.size())
             throw invalid_argument("Dimension invalida");
 
-        vector<size_t> new_shape = shape;
-        new_shape.insert(new_shape.begin() + dim, 1);
-
+        vector<size_t> new_shape = shape; // copia la forma actual para modificarla
+        new_shape.insert(new_shape.begin() + dim, 1);  // inserta un 1 en la posición dim, ej: {3} con dim=0 → {1,3}
         vector<double> vals;
-        for (size_t i = 0; i < total; i++) vals.push_back(values[i]);
+        vector<double> vals;
+        for (size_t i = 0; i < total; i++) vals.push_back(values[i]); // los datos no cambian, solo la forma
 
-        return Tensor(new_shape, vals);
+        return Tensor(new_shape, vals); // nuevo tensor con dimensión extra insertada
     }
 
     // sección 8: concat
@@ -188,19 +188,19 @@ public:
 // Multiplica elemento a elemento y suma todo → resultado es un escalar en tensor {1}
 Tensor dot(const Tensor& a, const Tensor& b) {
     if (a.total != b.total)
-        throw invalid_argument("dot incompatible");
+        throw invalid_argument("dot incompatible"); // ambos tensores deben tener el mismo número de elementos
 
     double sum = 0;
     for (size_t i = 0; i < a.total; i++)
-        sum += a.values[i] * b.values[i]; // acumula productos
+        sum += a.values[i] * b.values[i]; // multiplica cada par y acumula en sum
 
-    return move(Tensor({1}, {sum})); // retorna tensor escalar
+    return move(Tensor({1}, {sum}));  // empaqueta el escalar resultante en un tensor de una sola posición
 }
 
 // matmul: multiplicación matricial entre tensores 2D
 Tensor matmul(const Tensor& a, const Tensor& b) {
     if (a.shape.size() != 2 || b.shape.size() != 2)
-        throw invalid_argument("matmul solo 2D");
+        throw invalid_argument("matmul solo 2D"); // solo funciona con matrices, no con 1D o 3D
 
     size_t m = a.shape[0]; // filas de A
     size_t n = a.shape[1]; // columnas de A = filas de B
@@ -212,26 +212,29 @@ Tensor matmul(const Tensor& a, const Tensor& b) {
     vector<double> result(m * p, 0.0); // inicializa resultado en cero
 
     // triple loop multiplicacion matricial
-    for (size_t i = 0; i < m; i++)
-        for (size_t j = 0; j < p; j++)
-            for (size_t k = 0; k < n; k++)
+    for (size_t i = 0; i < m; i++) // recorre filas de A
+        for (size_t j = 0; j < p; j++) // recorre columnas de B
+            for (size_t k = 0; k < n; k++)  // recorre la dimensión compartida
+                 // i*n+k: posición de A[i][k] en memoria lineal
+                 // k*p+j: posición de B[k][j] en memoria lineal
+                 // i*p+j: posición de C[i][j] en memoria lineal
                 result[i * p + j] += a.values[i * n + k] * b.values[k * p + j];
-    return move(Tensor({m, p}, result));
+    return move(Tensor({m, p}, result)); // retorna el tensor resultado con su forma correcta
 }
 
 // (3.2) MÉTODOS ESTÁTICOS
 // Crea tensor lleno de ceros
 Tensor Tensor::zeros(const vector<size_t>& shape) {
     size_t total = 1;
-    for (auto s : shape) total *= s;
-    return Tensor(shape, vector<double>(total, 0));
+    for (auto s : shape) total *= s; // calcula total multiplicando todas las dimensiones
+    return Tensor(shape, vector<double>(total, 0)); // vector<double>(total, 0) crea un vector de 'total' elementos, todos en 0
 }
 
 // Crea tensor lleno de unos
 Tensor Tensor::ones(const vector<size_t>& shape) {
     size_t total = 1;
-    for (auto s : shape) total *= s;
-    return Tensor(shape, vector<double>(total, 1));
+    for (auto s : shape) total *= s; // igual que zeros, calcula cuántos elementos necesita
+    return Tensor(shape, vector<double>(total, 1));  // vector<double>(total, 1) crea un vector de 'total' elementos, todos en 1
 }
 
 // Crea tensor con valores aleatorios en el rango [min, max)
@@ -241,16 +244,18 @@ Tensor Tensor::random(const vector<size_t>& shape, double min, double max) {
 
     vector<double> vals;
     for (size_t i = 0; i < total; i++)
+        // rand() genera entero entre 0 y RAND_MAX
+        // dividir entre RAND_MAX da un decimal entre 0.0 y 1.0
+        // multiplicar por (max-min) y sumar min escala ese decimal al rango [min, max)
         vals.push_back(min + (double)rand() / RAND_MAX * (max - min));
-
     return Tensor(shape, vals);
 }
 
 // Crea tensor 1D con valores secuenciales desde start hasta end (no inclusivo)
 Tensor Tensor::arange(int start, int end) {
     vector<double> vals;
-    for (int i = start; i < end; i++) vals.push_back(i);
-    return Tensor({(size_t)(end - start)}, vals);
+    for (int i = start; i < end; i++) vals.push_back(i); 
+    return Tensor({(size_t)(end - start)}, vals); // llena con start, start+1, ..., end-1
 }
 
 // Seccion(5) TRANSFORMACIONES
@@ -258,19 +263,19 @@ Tensor Tensor::arange(int start, int end) {
 // interfaz abstracta = cualquier clase que herede debe implementar apply
 class TensorTransform {
 public:
-    virtual Tensor apply(const Tensor& t) const = 0;
-    virtual ~TensorTransform() = default;
+    virtual Tensor apply(const Tensor& t) const = 0; // = 0 significa que es método puramente virtual, obliga a las subclases a implementarlo
+    virtual ~TensorTransform() = default;   // destructor virtual necesario para que el polimorfismo libere memoria correctamente
 };
 
 // ReLU: reemplaza valores negativos por 0, deja los positivos igual
 // Formula: y = max(0, x)
 class ReLU : public TensorTransform {
 public:
-    Tensor apply(const Tensor& t) const override {
+    Tensor apply(const Tensor& t) const override { // override indica que estamos implementando el método virtual de la clase padre
         vector<double> v;
         for (size_t i = 0; i < t.total; i++)
-            v.push_back(max(0.0, t.values[i]));
-        return Tensor(t.shape, v);
+            v.push_back(max(0.0, t.values[i])); // si el valor es negativo, lo reemplaza por 0; si es positivo, lo deja igual
+        return Tensor(t.shape, v); // retorna nuevo tensor con misma forma pero valores transformados
     }
 };
 
