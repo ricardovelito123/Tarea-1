@@ -283,17 +283,17 @@ public:
 // Fórmula: y = 1 / (1 + e^-x)
 class Sigmoid : public TensorTransform {
 public:
-    Tensor apply(const Tensor& t) const override {
+    Tensor apply(const Tensor& t) const override { 
         vector<double> v;
         for (size_t i = 0; i < t.total; i++)
-            v.push_back(1.0 / (1.0 + exp(-t.values[i])));
-        return Tensor(t.shape, v);
+            v.push_back(1.0 / (1.0 + exp(-t.values[i]))); // exp(-x) es e^-x, luego aplica la fórmula
+        return Tensor(t.shape, v); // retorna nuevo tensor con misma forma pero valores entre 0 y 1
     }
 };
 
 // Delegación del apply: el tensor le pasa su propio contenido a la transformación recibida
 Tensor Tensor::apply(const TensorTransform& transform) const {
-    return transform.apply(*this);
+    return transform.apply(*this); // *this es el tensor actual, se lo pasa a ReLU, Sigmoid, etc.
 }
 
 // sección 8: concat
@@ -302,29 +302,31 @@ Tensor Tensor::concat(const vector<Tensor>& tensors, size_t dim) {
     if (tensors.empty())
         throw invalid_argument("No hay tensores para concatenar");
 
-    vector<size_t> base_shape = tensors[0].shape;
+    vector<size_t> base_shape = tensors[0].shape; // forma del primer tensor, usada como referencia
 
     if (dim >= base_shape.size())
-        throw invalid_argument("Dimension invalida");
+        throw invalid_argument("Dimension invalida"); // dim debe existir en la forma del tensor
 
     if (base_shape.size() > 3)
         throw invalid_argument("Maximo 3 dimensiones");
 
-    // validar misma cantidad de dimensiones y compatibilidad
+    // valida que todos los tensores tengan el mismo número de dimensiones
+    // y que todas las dimensiones (excepto 'dim') sean iguales
     for (size_t i = 0; i < tensors.size(); i++) {
         if (tensors[i].shape.size() != base_shape.size())
-            throw invalid_argument("Concat incompatible");
+            throw invalid_argument("Concat incompatible"); // no se puede concat 1D con 2D, por ejemplo
 
         for (size_t j = 0; j < base_shape.size(); j++) {
             if (j != dim && tensors[i].shape[j] != base_shape[j])
-                throw invalid_argument("Concat incompatible");
+                throw invalid_argument("Concat incompatible"); // las dims que no son 'dim' deben coincidir
         }
     }
-
+    // calcula la forma del tensor resultante:
+    // todas las dims igual que base_shape, excepto 'dim' que es la suma de todos
     vector<size_t> new_shape = base_shape;
     new_shape[dim] = 0;
     for (size_t i = 0; i < tensors.size(); i++)
-        new_shape[dim] += tensors[i].shape[dim];
+        new_shape[dim] += tensors[i].shape[dim];  // acumula el tamaño de la dimensión concatenada
 
     vector<double> result;
 
@@ -339,16 +341,18 @@ Tensor Tensor::concat(const vector<Tensor>& tensors, size_t dim) {
     // caso 2D
     else if (base_shape.size() == 2) {
         if (dim == 0) {
+            // concat por filas: se pegan las filas de cada tensor en orden
             for (size_t t = 0; t < tensors.size(); t++) {
                 for (size_t i = 0; i < tensors[t].total; i++)
                     result.push_back(tensors[t].values[i]);
             }
         } else {
-            for (size_t i = 0; i < base_shape[0]; i++) {
-                for (size_t t = 0; t < tensors.size(); t++) {
+            // concat por columnas: para cada fila, se toman las columnas de cada tensor
+            for (size_t i = 0; i < base_shape[0]; i++) { // recorre filas
+                for (size_t t = 0; t < tensors.size(); t++) { // para cada tensor
                     size_t current_cols = tensors[t].shape[1];
                     for (size_t j = 0; j < current_cols; j++) {
-                        result.push_back(tensors[t].values[i * current_cols + j]);
+                        result.push_back(tensors[t].values[i * current_cols + j]); // i*cols+j convierte 2D a índice lineal
                     }
                 }
             }
@@ -357,16 +361,18 @@ Tensor Tensor::concat(const vector<Tensor>& tensors, size_t dim) {
 
     // caso 3D
     else if (base_shape.size() == 3) {
-        size_t a = base_shape[0];
-        size_t b = base_shape[1];
+        size_t a = base_shape[0]; // dimensión 0 (ej: lotes)
+        size_t b = base_shape[1]; // dimensión 1 (ej: filas)
 
         if (dim == 0) {
+            // concat en la primera dimensión: se pegan todos los datos en orden
             for (size_t t = 0; t < tensors.size(); t++) {
                 for (size_t i = 0; i < tensors[t].total; i++)
                     result.push_back(tensors[t].values[i]);
             }
         } else if (dim == 1) {
-            for (size_t i = 0; i < a; i++) {
+            // concat en la segunda dimensión: para cada lote, se pegan las "filas" de cada tensor
+            for (size_t i = 0; i < a; i++) { // recorre dimensión 0
                 for (size_t t = 0; t < tensors.size(); t++) {
                     size_t cur_b = tensors[t].shape[1];
                     size_t cur_c = tensors[t].shape[2];
@@ -379,8 +385,9 @@ Tensor Tensor::concat(const vector<Tensor>& tensors, size_t dim) {
                 }
             }
         } else if (dim == 2) {
-            for (size_t i = 0; i < a; i++) {
-                for (size_t j = 0; j < b; j++) {
+            // concat en la tercera dimensión: para cada lote y fila, se pegan las "columnas" de cada tensor
+            for (size_t i = 0; i < a; i++) { // recorre dimensión 0
+                for (size_t j = 0; j < b; j++) {  // recorre dimensión 1
                     for (size_t t = 0; t < tensors.size(); t++) {
                         size_t cur_c = tensors[t].shape[2];
                         for (size_t k = 0; k < cur_c; k++) {
@@ -393,5 +400,5 @@ Tensor Tensor::concat(const vector<Tensor>& tensors, size_t dim) {
         }
     }
 
-    return Tensor(new_shape, result);
+    return Tensor(new_shape, result); // retorna el tensor concatenado con su nueva forma
 }
