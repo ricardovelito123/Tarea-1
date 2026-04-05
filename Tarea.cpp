@@ -172,7 +172,6 @@ public:
         vector<size_t> new_shape = shape; // copia la forma actual para modificarla
         new_shape.insert(new_shape.begin() + dim, 1);  // inserta un 1 en la posición dim, ej: {3} con dim=0 → {1,3}
         vector<double> vals;
-        vector<double> vals;
         for (size_t i = 0; i < total; i++) vals.push_back(values[i]); // los datos no cambian, solo la forma
 
         return Tensor(new_shape, vals); // nuevo tensor con dimensión extra insertada
@@ -401,4 +400,61 @@ Tensor Tensor::concat(const vector<Tensor>& tensors, size_t dim) {
     }
 
     return Tensor(new_shape, result); // retorna el tensor concatenado con su nueva forma
+}
+
+//Seccion 10: Red Neuronal
+int main() {
+    // Paso 1: Tensor de entrada de dimensiones 1000 x 20 x 20
+    Tensor input = Tensor::random({1000, 20, 20}, 0.0, 1.0);
+    cout << "Paso 1 - Entrada:        {1000, 20, 20} -> total: " << input.getTotal() << endl;
+
+    // Paso 2: Aplanar cada muestra de 20x20 a un vector de 400 elementos
+    Tensor flat = input.view({1000, 400});
+    cout << "Paso 2 - view:           {1000, 400}    -> total: " << flat.getTotal() << endl;
+
+    // Paso 3: Multiplicar por los pesos de la primera capa W1 (400 x 100)
+    Tensor W1 = Tensor::random({400, 100}, -0.1, 0.1);
+    Tensor z1 = matmul(flat, W1);
+    cout << "Paso 3 - matmul W1:      {1000, 100}    -> total: " << z1.getTotal() << endl;
+
+    // Paso 4: Sumar el bias de la primera capa b1 replicado a {1000, 100}
+    Tensor b1_row = Tensor::random({1, 100}, 0.0, 0.1);
+    vector<double> b1_vals;
+    for (size_t i = 0; i < 1000; i++)
+        for (size_t j = 0; j < 100; j++)
+            b1_vals.push_back(b1_row.getValues()[j]);
+    Tensor b1({1000, 100}, b1_vals);
+    Tensor a1 = z1 + b1;
+    cout << "Paso 4 - suma bias b1:   {1000, 100}    -> total: " << a1.getTotal() << endl;
+
+    // Paso 5: Activación ReLU
+    ReLU relu;
+    Tensor h1 = a1.apply(relu);
+    cout << "Paso 5 - ReLU:           {1000, 100}    -> total: " << h1.getTotal() << endl;
+
+    // Paso 6: Multiplicar por los pesos de la segunda capa W2 (100 x 10)
+    Tensor W2 = Tensor::random({100, 10}, -0.1, 0.1);
+    Tensor z2 = matmul(h1, W2);
+    cout << "Paso 6 - matmul W2:      {1000, 10}     -> total: " << z2.getTotal() << endl;
+
+    // Paso 7: Sumar el bias de la segunda capa b2 replicado a {1000, 10}
+    Tensor b2_row = Tensor::random({1, 10}, 0.0, 0.1);
+    vector<double> b2_vals;
+    for (size_t i = 0; i < 1000; i++)
+        for (size_t j = 0; j < 10; j++)
+            b2_vals.push_back(b2_row.getValues()[j]);
+    Tensor b2({1000, 10}, b2_vals);
+    Tensor a2 = z2 + b2;
+    cout << "Paso 7 - suma bias b2:   {1000, 10}     -> total: " << a2.getTotal() << endl;
+
+    // Paso 8: Activación Sigmoid
+    Sigmoid sigmoid;
+    Tensor output = a2.apply(sigmoid);
+    cout << "Paso 8 - Sigmoid:        {1000, 10}     -> total: " << output.getTotal() << endl;
+
+    // Verificación: primeras 10 salidas de la muestra 0
+    cout << "\nPrimeras 10 salidas de la muestra 0:" << endl;
+    for (size_t i = 0; i < 10; i++)
+        cout << "  clase[" << i << "] = " << output.getValues()[i] << endl;
+    return 0;
 }
