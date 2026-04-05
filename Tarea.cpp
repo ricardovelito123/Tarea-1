@@ -16,6 +16,9 @@ class Tensor {
     friend class ReLU;
     friend class Sigmoid;
 
+    friend Tensor dot(const Tensor& a, const Tensor& b);
+    friend Tensor matmul(const Tensor& a, const Tensor& b);
+
 public:
     // sección 3.1: Constructor principal
     // recibe las dimensiones y los valores, reserva memoria dinámica y copia los datos
@@ -179,6 +182,42 @@ public:
     // concatena varios tensores a lo largo de una dimensión específica
     static Tensor concat(const vector<Tensor>& tensors, size_t dim);
 };
+
+// FUNCIONES AMIGAS
+//  dot: producto punto entre dos tensores de igual número de elementos
+// Multiplica elemento a elemento y suma todo → resultado es un escalar en tensor {1}
+Tensor dot(const Tensor& a, const Tensor& b) {
+    if (a.total != b.total)
+        throw invalid_argument("dot incompatible");
+
+    double sum = 0;
+    for (size_t i = 0; i < a.total; i++)
+        sum += a.values[i] * b.values[i]; // acumula productos
+
+    return move(Tensor({1}, {sum})); // retorna tensor escalar
+}
+
+// matmul: multiplicación matricial entre tensores 2D
+Tensor matmul(const Tensor& a, const Tensor& b) {
+    if (a.shape.size() != 2 || b.shape.size() != 2)
+        throw invalid_argument("matmul solo 2D");
+
+    size_t m = a.shape[0]; // filas de A
+    size_t n = a.shape[1]; // columnas de A = filas de B
+    size_t p = b.shape[1]; // columnas de B
+
+    if (n != b.shape[0])
+        throw invalid_argument("matmul incompatible"); // columnas de A deben ser iguales a filas de B
+
+    vector<double> result(m * p, 0.0); // inicializa resultado en cero
+
+    // triple loop multiplicacion matricial
+    for (size_t i = 0; i < m; i++)
+        for (size_t j = 0; j < p; j++)
+            for (size_t k = 0; k < n; k++)
+                result[i * p + j] += a.values[i * n + k] * b.values[k * p + j];
+    return move(Tensor({m, p}, result));
+}
 
 // (3.2) MÉTODOS ESTÁTICOS
 // Crea tensor lleno de ceros
